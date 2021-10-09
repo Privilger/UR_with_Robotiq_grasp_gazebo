@@ -35,9 +35,9 @@ MimicJointPlugin::MimicJointPlugin()
 
 MimicJointPlugin::~MimicJointPlugin()
 {
-  event::Events::DisconnectWorldUpdateBegin(this->updateConnection);
+    this->updateConnection.reset();
 
-  kill_sim = true;
+    kill_sim = true;
 }
 
 void MimicJointPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
@@ -149,25 +149,24 @@ void MimicJointPlugin::Load(physics::ModelPtr _parent, sdf::ElementPtr _sdf )
 
 void MimicJointPlugin::UpdateChild()
 {
-  static ros::Duration period(world_->GetPhysicsEngine()->GetMaxStepSize());
+    static ros::Duration period(world_->Physics()->GetMaxStepSize());
 
-  // Set mimic joint's angle based on joint's angle
-  double angle = joint_->GetAngle(0).Radian()*multiplier_+offset_;
-  
-  if(abs(angle-mimic_joint_->GetAngle(0).Radian())>=sensitiveness_)
-  {
-    if(has_pid_)
+    // Set mimic joint's angle based on joint's angle
+    double angle = joint_->Position(0) * multiplier_ + offset_;
+
+    if (abs(angle - mimic_joint_->Position(0)) >= sensitiveness_)
     {
-      double a = mimic_joint_->GetAngle(0).Radian();
-      if(a!=a)
-        a = angle;
-      double error = angle-a;
-      double effort = gazebo::math::clamp(pid_.computeCommand(error, period), -max_effort_, max_effort_);
-      mimic_joint_->SetForce(0, effort);
+        if (has_pid_)
+        {
+            double a = mimic_joint_->Position(0);
+            if (a != a) a = angle;
+            double error = angle - a;
+            double effort = ignition::math::clamp(pid_.computeCommand(error, period), -max_effort_, max_effort_);
+            mimic_joint_->SetForce(0, effort);
+        }
+        else
+            mimic_joint_->SetPosition(0, angle);
     }
-    else
-      mimic_joint_->SetPosition(0, angle);
-  }
 }
 
 GZ_REGISTER_MODEL_PLUGIN(MimicJointPlugin);
